@@ -23,9 +23,6 @@ class JediStore extends ReduceStore {
         return state.clear();
 
       case 'SEEK_MASTERS':
-        if(state.count() < 5) {
-          return state;
-        }
         if(this.reaLJedis().count() === 1) {
           //when the last one is the onely real one left, do nothing
           if (!emptyJediNames.contains(state.last().name)){
@@ -43,8 +40,11 @@ class JediStore extends ReduceStore {
         });
 
       case 'SEEK_APPRENTICES':
-        if(state.count() < 5) {
-          return state;
+        if(this.reaLJedis().count() === 1) {
+          //when the first one is the onely real one left, do nothing
+          if (!emptyJediNames.contains(state.first().name)){
+            return state;
+          }
         }
         if(state.last().name === emptyJedi2.name) {
           return state;
