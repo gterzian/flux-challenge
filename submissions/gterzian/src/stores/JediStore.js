@@ -6,8 +6,9 @@ import WorldStore from './WorldStore'
 import {emptyJedi1, emptyJedi2} from '../constants/JediConstants'
 import webApi from '../utils/web-api';
 
-const emptyJediNames = Immutable.List([emptyJedi1, emptyJedi2])
-  .map(jedi => return jedi.name);
+const emptyJediNames = Immutable.List([emptyJedi1, emptyJedi2]).map((jedi) => {
+  return jedi.name
+});
 
 
 class JediStore extends ReduceStore {
