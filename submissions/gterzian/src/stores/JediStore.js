@@ -3,17 +3,14 @@ import {ReduceStore} from 'flux/utils';
 
 import Dispatcher from '../dispatcher/Dispatcher';
 import WorldStore from './WorldStore'
-import {emptyJedi1, emptyJedi2} from '../constants/JediConstants'
+import emptyJedi from '../constants/JediConstants'
 import webApi from '../utils/web-api';
-
-const emptyJediNames = Immutable.List([emptyJedi1, emptyJedi2]).map((jedi) => {
-  return jedi.name
-});
 
 
 class JediStore extends ReduceStore {
   getInitialState() {
-    return Immutable.List();
+    return Immutable.List([new emptyJedi({id:1}), new emptyJedi({id:2}),
+       new emptyJedi({id:3}), new emptyJedi({id:4}), new emptyJedi({id:5})]);
   }
 
   reduce(state, action) {
@@ -23,37 +20,26 @@ class JediStore extends ReduceStore {
         return state.clear();
 
       case 'SEEK_MASTERS':
-        if(this.reaLJedis().count() === 1) {
+        if(this.realJedis().count() === 1) {
           //when the last one is the onely real one left, do nothing
-          if (!emptyJediNames.contains(state.last().name)){
+          if (!state.last().fake){
             return state;
           }
         }
-        if(state.first().name === emptyJedi1.name) {
-          return state;
-        }
-        if(state.first().name === emptyJedi2.name) {
-          return state;
-        }
         return state.withMutations((list) => {
-          return list.pop().pop().unshift(emptyJedi2).unshift(emptyJedi1);
+          return list.pop().pop().unshift(new emptyJedi({id:1})).unshift(new emptyJedi({id:2}));
         });
 
       case 'SEEK_APPRENTICES':
-        if(this.reaLJedis().count() === 1) {
+        if(this.realJedis().count() === 1) {
           //when the first one is the onely real one left, do nothing
-          if (!emptyJediNames.contains(state.first().name)){
+          if (!state.first().fake){
             return state;
           }
         }
-        if(state.last().name === emptyJedi2.name) {
-          return state;
-        }
-        if(state.last().name === emptyJedi1.name) {
-          return state;
-        }
         return state.withMutations((list) => {
-          return list.shift().shift().push(emptyJedi1).push(emptyJedi2);
+
+          return list.shift().shift().push(new emptyJedi({id:4})).push(new emptyJedi({id:5}));
         });
 
       case 'NEW_JEDI':
@@ -62,45 +48,47 @@ class JediStore extends ReduceStore {
         }
         const currentWorld = WorldStore.getState().get('id');
         const jedi = this.checkJediHome(currentWorld)(action.jedi);
-        if (state.isEmpty()) {
-          return state.push(jedi);
-        }
         const realJedis = this.realJedis();
         if(realJedis.count() === 5) {
           return state;
+        }
+        if(realJedis.count() === 0) {
+          return state.pop().unshift(jedi);
         }
         const containsJedi = state.find((existing) => {
           return existing.id === jedi.id;
         });
         if (!containsJedi) {
-          const first = state.first();
-          const last = state.last();
+          const first = realJedis.first();
+          const last = realJedis.last();
           const master = first.master;
-          if (master && (master.id === jedi.id)) {
-            return state.unshift(jedi);
+          const apprentice = last.apprentice;
+          if(master.id === jedi.id){
+            const realOnes = this.realJedis();
+            const updated = realOnes.unshift(jedi);
+            const missing = Immutable.Range(0, 5 - updated.count());
+            let newState = [];
+            missing.forEach(miss => {
+              newState.unshift(new emptyJedi({id:miss}));
+            });
+            updated.forEach(jedi => {
+              newState.push(jedi);
+            })
+            return Immutable.List(newState);
           }
-          else {
-            if (first.name === emptyJedi1.name) {
-              return state.withMutations((list) => {
-                return list.shift().shift().unshift(jedi).unshift(emptyJedi2);
-              });
-            }
-            if (first.name === emptyJedi2.name) {
-              return state.withMutations((list) => {
-                return list.shift().unshift(jedi);
-              });
-            }
-            if (last.name === emptyJedi2.name) {
-              return state.withMutations((list) => {
-                return list.pop().pop().push(jedi).push(emptyJedi1);
-              });
-            }
-            if (last.name === emptyJedi1.name) {
-              return state.withMutations((list) => {
-                return list.pop().push(jedi);
-              });
-            }
-            return state.push(jedi);
+          if(apprentice.id === jedi.id){
+            const realOnes = this.realJedis();
+            const updated = realOnes.push(jedi);
+            console.log(updated)
+            const missing = Immutable.Range(0, 5 - updated.count());
+            let newState = [];
+            updated.forEach(jedi => {
+              newState.push(jedi);
+            })
+            missing.forEach(miss => {
+              newState.push(new emptyJedi({id:miss}));
+            });
+            return Immutable.List(newState);
           }
         }
         else {
@@ -121,11 +109,14 @@ class JediStore extends ReduceStore {
   }
 
   realJedis() {
-    return this.getState().filter(jedi => jedi.homeworld.id);
+    return this.getState().filter(jedi => !jedi.fake);
   }
 
   checkJediHome(homeId) {
     return (jedi) => {
+      if (jedi.fake){
+        return jedi;
+      }
       if (jedi.homeworld.id === homeId) {
         jedi.onCurrentWorld = true;
       }
@@ -137,11 +128,11 @@ class JediStore extends ReduceStore {
   }
 
   hasJediAtHome() {
-    return this.getState().some(jedi => jedi.onCurrentWorld);
+    return this.realJedis().some(jedi => jedi.onCurrentWorld);
   }
 
   firstHasMaster() {
-    if (this.getState().isEmpty()) {
+    if (this.realJedis().isEmpty()) {
       return false;
     }
     let master = this.realJedis().first().master;
@@ -154,7 +145,7 @@ class JediStore extends ReduceStore {
   }
 
   lastHasApprentice() {
-    if (this.getState().isEmpty()) {
+    if (this.realJedis().isEmpty()) {
       return false;
     }
     let apprentice = this.realJedis().last().apprentice;
