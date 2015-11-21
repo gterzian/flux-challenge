@@ -6,6 +6,10 @@ import WorldStore from './WorldStore'
 import {emptyJedi1, emptyJedi2} from '../constants/JediConstants'
 import webApi from '../utils/web-api';
 
+const emptyJediNames = Immutable.List([emptyJedi1, emptyJedi2])
+  .map(jedi => return jedi.name);
+
+
 class JediStore extends ReduceStore {
   getInitialState() {
     return Immutable.List();
@@ -20,6 +24,12 @@ class JediStore extends ReduceStore {
       case 'SEEK_MASTERS':
         if(state.count() < 5) {
           return state;
+        }
+        if(this.reaLJedis().count() === 1) {
+          //when the last one is the onely real one left, do nothing
+          if (!emptyJediNames.contains(state.last().name)){
+            return state;
+          }
         }
         if(state.first().name === emptyJedi1.name) {
           return state;
