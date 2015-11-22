@@ -3,12 +3,15 @@ import {ReduceStore} from 'flux/utils';
 
 import Dispatcher from '../dispatcher/Dispatcher';
 import WorldStore from './WorldStore'
-import {emptyJedi1, emptyJedi2} from '../constants/JediConstants'
+import emptyJedi from '../constants/JediConstants'
 import webApi from '../utils/web-api';
 
+
 class JediStore extends ReduceStore {
+
   getInitialState() {
-    return Immutable.List();
+    return Immutable.List([new emptyJedi({id:Math.random()}), new emptyJedi({id:Math.random()}),
+       new emptyJedi({id:Math.random()}), new emptyJedi({id:Math.random()}), new emptyJedi({id:Math.random()})]);
   }
 
   reduce(state, action) {
@@ -18,32 +21,50 @@ class JediStore extends ReduceStore {
         return state.clear();
 
       case 'SEEK_MASTERS':
-        if(state.count() < 5) {
+        if(this.realJedis().count() === 1 && !state.last().fake) {
+          //when the last one is the onely real one left, do nothing
           return state;
         }
-        if(state.first().name === emptyJedi1.name) {
+        if(this.realJedis().count() === 2 && !state.last().fake) {
+          //when the last one is the onely real one left, do nothing
           return state;
         }
-        if(state.first().name === emptyJedi2.name) {
-          return state;
+        else {
+          const updated = this.getState().pop().pop()
+          const missing = Immutable.Range(0, 5 - updated.count());
+          let newState = [];
+          updated.forEach(jedi => {
+            newState.push(jedi);
+          })
+          missing.forEach(miss => {
+            newState.unshift(new emptyJedi({id:Math.random()}));
+          });
+          console.log(newState)
+          return Immutable.List(newState);
         }
-        return state.withMutations((list) => {
-          return list.pop().pop().unshift(emptyJedi2).unshift(emptyJedi1);
-        });
 
       case 'SEEK_APPRENTICES':
-        if(state.count() < 5) {
+        if(this.realJedis().count() === 1 && !state.first().fake) {
+          //when the last one is the onely real one left, do nothing
           return state;
         }
-        if(state.last().name === emptyJedi2.name) {
+        if(this.realJedis().count() === 2 && !state.first().fake) {
+          //when the last one is the onely real one left, do nothing
           return state;
         }
-        if(state.last().name === emptyJedi1.name) {
-          return state;
+        else {
+          const updated = this.getState().shift().shift()
+          const missing = Immutable.Range(0, 5 - updated.count());
+          let newState = [];
+          updated.forEach(jedi => {
+            newState.push(jedi);
+          })
+          missing.forEach(miss => {
+            newState.push(new emptyJedi({id:Math.random()}));
+          });
+          console.log(newState)
+          return Immutable.List(newState);
         }
-        return state.withMutations((list) => {
-          return list.shift().shift().push(emptyJedi1).push(emptyJedi2);
-        });
 
       case 'NEW_JEDI':
         if (this.hasJediAtHome()) {
@@ -51,45 +72,54 @@ class JediStore extends ReduceStore {
         }
         const currentWorld = WorldStore.getState().get('id');
         const jedi = this.checkJediHome(currentWorld)(action.jedi);
-        if (state.isEmpty()) {
-          return state.push(jedi);
-        }
         const realJedis = this.realJedis();
         if(realJedis.count() === 5) {
           return state;
+        }
+        if(realJedis.count() === 0) {
+          webApi.getJedi(jedi.apprentice.url, 'Apprentice');
+          return state.pop().unshift(jedi);
         }
         const containsJedi = state.find((existing) => {
           return existing.id === jedi.id;
         });
         if (!containsJedi) {
-          const first = state.first();
-          const last = state.last();
+          const first = realJedis.first();
+          const last = realJedis.last();
           const master = first.master;
-          if (master && (master.id === jedi.id)) {
-            return state.unshift(jedi);
+          const apprentice = last.apprentice;
+          if (master.id === jedi.id) {
+            const realOnes = this.realJedis();
+            const updated = realOnes.unshift(jedi);
+            const missing = Immutable.Range(0, 5 - updated.count());
+            let newState = [];
+            missing.forEach(miss => {
+              newState.unshift(new emptyJedi({id:Math.random()}));
+            });
+            updated.forEach(jedi => {
+              newState.push(jedi);
+            })
+            if (jedi.master && realOnes.count() < 5) {
+              webApi.getJedi(jedi.master.url, 'Master');
+            }
+            return Immutable.List(newState);
           }
-          else {
-            if (first.name === emptyJedi1.name) {
-              return state.withMutations((list) => {
-                return list.shift().shift().unshift(jedi).unshift(emptyJedi2);
-              });
+          if (apprentice.id === jedi.id) {
+            const realOnes = this.realJedis();
+            const updated = realOnes.push(jedi);
+            const missing = Immutable.Range(0, 5 - updated.count());
+            let newState = [];
+            updated.forEach(jedi => {
+              newState.push(jedi);
+            })
+            missing.forEach(miss => {
+              newState.push(new emptyJedi({id:Math.random()}));
+            });
+            if (jedi.apprentice.url && realOnes.count() < 5) {
+              console.log(jedi.apprentice)
+              webApi.getJedi(jedi.apprentice.url, 'Apprentice');
             }
-            if (first.name === emptyJedi2.name) {
-              return state.withMutations((list) => {
-                return list.shift().unshift(jedi);
-              });
-            }
-            if (last.name === emptyJedi2.name) {
-              return state.withMutations((list) => {
-                return list.pop().pop().push(jedi).push(emptyJedi1);
-              });
-            }
-            if (last.name === emptyJedi1.name) {
-              return state.withMutations((list) => {
-                return list.pop().push(jedi);
-              });
-            }
-            return state.push(jedi);
+            return Immutable.List(newState);
           }
         }
         else {
@@ -110,11 +140,14 @@ class JediStore extends ReduceStore {
   }
 
   realJedis() {
-    return this.getState().filter(jedi => jedi.homeworld.id);
+    return this.getState().filter(jedi => !jedi.fake);
   }
 
   checkJediHome(homeId) {
     return (jedi) => {
+      if (jedi.fake){
+        return jedi;
+      }
       if (jedi.homeworld.id === homeId) {
         jedi.onCurrentWorld = true;
       }
@@ -126,11 +159,11 @@ class JediStore extends ReduceStore {
   }
 
   hasJediAtHome() {
-    return this.getState().some(jedi => jedi.onCurrentWorld);
+    return this.realJedis().some(jedi => jedi.onCurrentWorld);
   }
 
   firstHasMaster() {
-    if (this.getState().isEmpty()) {
+    if (this.realJedis().isEmpty()) {
       return false;
     }
     let master = this.realJedis().first().master;
@@ -143,7 +176,7 @@ class JediStore extends ReduceStore {
   }
 
   lastHasApprentice() {
-    if (this.getState().isEmpty()) {
+    if (this.realJedis().isEmpty()) {
       return false;
     }
     let apprentice = this.realJedis().last().apprentice;
