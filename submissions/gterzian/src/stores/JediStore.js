@@ -8,9 +8,10 @@ import webApi from '../utils/web-api';
 
 
 class JediStore extends ReduceStore {
+
   getInitialState() {
-    return Immutable.List([new emptyJedi({id:1}), new emptyJedi({id:2}),
-       new emptyJedi({id:3}), new emptyJedi({id:4}), new emptyJedi({id:5})]);
+    return Immutable.List([new emptyJedi({id:Math.random()}), new emptyJedi({id:Math.random()}),
+       new emptyJedi({id:Math.random()}), new emptyJedi({id:Math.random()}), new emptyJedi({id:Math.random()})]);
   }
 
   reduce(state, action) {
@@ -20,27 +21,50 @@ class JediStore extends ReduceStore {
         return state.clear();
 
       case 'SEEK_MASTERS':
-        if(this.realJedis().count() === 1) {
+        if(this.realJedis().count() === 1 && !state.last().fake) {
           //when the last one is the onely real one left, do nothing
-          if (!state.last().fake){
-            return state;
-          }
+          return state;
         }
-        return state.withMutations((list) => {
-          return list.pop().pop().unshift(new emptyJedi({id:1})).unshift(new emptyJedi({id:2}));
-        });
+        if(this.realJedis().count() === 2 && !state.last().fake) {
+          //when the last one is the onely real one left, do nothing
+          return state;
+        }
+        else {
+          const updated = this.getState().pop().pop()//.unshift(new emptyJedi({id:1})).unshift(new emptyJedi({id:2}));
+          const missing = Immutable.Range(0, 5 - updated.count());
+          let newState = [];
+          updated.forEach(jedi => {
+            newState.push(jedi);
+          })
+          missing.forEach(miss => {
+            newState.unshift(new emptyJedi({id:Math.random()}));
+          });
+          console.log(newState)
+          return Immutable.List(newState);
+        }
 
       case 'SEEK_APPRENTICES':
-        if(this.realJedis().count() === 1) {
-          //when the first one is the onely real one left, do nothing
-          if (!state.first().fake){
-            return state;
-          }
+        if(this.realJedis().count() === 1 && !state.first().fake) {
+          //when the last one is the onely real one left, do nothing
+          return state;
         }
-        return state.withMutations((list) => {
-
-          return list.shift().shift().push(new emptyJedi({id:4})).push(new emptyJedi({id:5}));
-        });
+        if(this.realJedis().count() === 2 && !state.first().fake) {
+          //when the last one is the onely real one left, do nothing
+          return state;
+        }
+        else {
+          const updated = this.getState().shift().shift()//.push(new emptyJedi({id:Math.random()})).push(new emptyJedi({id:Math.random()}));
+          const missing = Immutable.Range(0, 5 - updated.count());
+          let newState = [];
+          updated.forEach(jedi => {
+            newState.push(jedi);
+          })
+          missing.forEach(miss => {
+            newState.push(new emptyJedi({id:Math.random()}));
+          });
+          console.log(newState)
+          return Immutable.List(newState);
+        }
 
       case 'NEW_JEDI':
         if (this.hasJediAtHome()) {
@@ -69,7 +93,7 @@ class JediStore extends ReduceStore {
             const missing = Immutable.Range(0, 5 - updated.count());
             let newState = [];
             missing.forEach(miss => {
-              newState.unshift(new emptyJedi({id:miss}));
+              newState.unshift(new emptyJedi({id:Math.random()}));
             });
             updated.forEach(jedi => {
               newState.push(jedi);
@@ -79,14 +103,13 @@ class JediStore extends ReduceStore {
           if(apprentice.id === jedi.id){
             const realOnes = this.realJedis();
             const updated = realOnes.push(jedi);
-            console.log(updated)
             const missing = Immutable.Range(0, 5 - updated.count());
             let newState = [];
             updated.forEach(jedi => {
               newState.push(jedi);
             })
             missing.forEach(miss => {
-              newState.push(new emptyJedi({id:miss}));
+              newState.push(new emptyJedi({id:Math.random()}));
             });
             return Immutable.List(newState);
           }
