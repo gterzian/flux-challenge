@@ -30,7 +30,7 @@ class JediStore extends ReduceStore {
           return state;
         }
         else {
-          const updated = this.getState().pop().pop()//.unshift(new emptyJedi({id:1})).unshift(new emptyJedi({id:2}));
+          const updated = this.getState().pop().pop()
           const missing = Immutable.Range(0, 5 - updated.count());
           let newState = [];
           updated.forEach(jedi => {
@@ -53,7 +53,7 @@ class JediStore extends ReduceStore {
           return state;
         }
         else {
-          const updated = this.getState().shift().shift()//.push(new emptyJedi({id:Math.random()})).push(new emptyJedi({id:Math.random()}));
+          const updated = this.getState().shift().shift()
           const missing = Immutable.Range(0, 5 - updated.count());
           let newState = [];
           updated.forEach(jedi => {
@@ -77,6 +77,7 @@ class JediStore extends ReduceStore {
           return state;
         }
         if(realJedis.count() === 0) {
+          webApi.getJedi(jedi.apprentice.url, 'Apprentice');
           return state.pop().unshift(jedi);
         }
         const containsJedi = state.find((existing) => {
@@ -87,7 +88,7 @@ class JediStore extends ReduceStore {
           const last = realJedis.last();
           const master = first.master;
           const apprentice = last.apprentice;
-          if(master.id === jedi.id){
+          if (master.id === jedi.id) {
             const realOnes = this.realJedis();
             const updated = realOnes.unshift(jedi);
             const missing = Immutable.Range(0, 5 - updated.count());
@@ -98,9 +99,12 @@ class JediStore extends ReduceStore {
             updated.forEach(jedi => {
               newState.push(jedi);
             })
+            if (jedi.master && realOnes.count() < 5) {
+              webApi.getJedi(jedi.master.url, 'Master');
+            }
             return Immutable.List(newState);
           }
-          if(apprentice.id === jedi.id){
+          if (apprentice.id === jedi.id) {
             const realOnes = this.realJedis();
             const updated = realOnes.push(jedi);
             const missing = Immutable.Range(0, 5 - updated.count());
@@ -111,6 +115,9 @@ class JediStore extends ReduceStore {
             missing.forEach(miss => {
               newState.push(new emptyJedi({id:Math.random()}));
             });
+            if (jedi.apprentice && realOnes.count() < 5) {
+              webApi.getJedi(jedi.apprentice.url, 'Apprentice');
+            }
             return Immutable.List(newState);
           }
         }
