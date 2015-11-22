@@ -115,7 +115,8 @@ class JediStore extends ReduceStore {
             missing.forEach(miss => {
               newState.push(new emptyJedi({id:Math.random()}));
             });
-            if (jedi.apprentice && realOnes.count() < 5) {
+            if (jedi.apprentice.url && realOnes.count() < 5) {
+              console.log(jedi.apprentice)
               webApi.getJedi(jedi.apprentice.url, 'Apprentice');
             }
             return Immutable.List(newState);

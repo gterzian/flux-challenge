@@ -26,12 +26,12 @@ module.exports = {
       if(lastSecondRequest) {
         lastSecondRequest.abort();
       }
-      if (side === 'Master') {
+      if (side === 'Master' && first.master.url) {
         lastSecondRequest = $.getJSON(first.master.url).done(second => {
           JediActions.newJedi(second);
         });
       }
-      else {
+      if (side === 'Apprentice' && first.apprentice.url) {
         lastSecondRequest = $.getJSON(first.apprentice.url).done(second => {
           JediActions.newJedi(second);
         });
